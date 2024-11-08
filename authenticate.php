@@ -1,14 +1,37 @@
 <?php
-// start session
 
-// login to the softball database
+session_start();
+include 'validate.php';
 
-// select password from users where username = <what the user typed in>
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = test_input($_POST['user']);
+    $password = test_input($_POST['pwd']);
 
-// if no rows, then username is not valid (but don't tell Mallory) just send
-// her back to the login
+    $conn = new mysqli("localhost", "root", "", "softball");
 
-// otherwise, password_verify(password from form, password from db)
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
 
-// if good, put username in session, otherwise send back to login
+    $sql = "SELECT password FROM users WHERE username = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        if (password_verify($password, $row['password'])) {
+            $_SESSION['username'] = $username;
+            header("location: games.php");
+            exit;
+        } else {
+            echo "Invalid credentials";
+        }
+    } else {
+        echo "Invalid credentials";
+    }
+
+    $conn->close();
+}
+?>
