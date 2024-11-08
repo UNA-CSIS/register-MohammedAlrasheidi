@@ -1,17 +1,46 @@
 <?php
-// session start here...
+session_start();
+include 'validate.php';
 
-// get all 3 strings from the form (and scrub w/ validation function)
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = test_input($_POST['user']);
+    $password = test_input($_POST['pwd']);
+    $password_confirm = test_input($_POST['repeat']);
 
-// make sure that the two password values match!
+    if ($password !== $password_confirm) {
+        echo "Passwords do not match!";
+        exit;
+    }
 
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-// create the password_hash using the PASSWORD_DEFAULT argument
+    $conn = new mysqli("localhost", "root", "", "softball");
 
-// login to the database
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
 
-// make sure that the new user is not already in the database
+    $sql = "SELECT * FROM users WHERE username = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-// insert username and password hash into db (put the username in the session
-// or make them login)
+    if ($result->num_rows > 0) {
+        echo "Username already exists!";
+    } else {
+        $insert_sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+        $insert_stmt = $conn->prepare($insert_sql);
+        $insert_stmt->bind_param("ss", $username, $hashed_password);
+        if ($insert_stmt->execute()) {
+            $_SESSION['username'] = $username;
+            header("location: games.php");
+            exit;
+        } else {
+            echo "Error: " . $insert_stmt->error;
+        }
+    }
 
+    $conn->close();
+}
+?>
